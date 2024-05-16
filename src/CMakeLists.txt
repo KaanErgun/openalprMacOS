@@ -1,9 +1,12 @@
+cmake_minimum_required(VERSION 3.5)
 project(src)
 
 set(CMAKE_BUILD_TYPE RelWithDebugInfo)
 #set(CMAKE_BUILD_TYPE Debug)
 
-cmake_minimum_required (VERSION 2.6)
+# C++11 desteğini etkinleştirme
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 # Set the OpenALPR version in cmake, and also add it as a DEFINE for the code to access
 SET(OPENALPR_MAJOR_VERSION "2")
@@ -47,7 +50,6 @@ if ( NOT DEFINED WITH_BINDING_JAVA )
   SET(WITH_BINDING_JAVA ON)
 ENDIF()
 
-          
 if ( NOT DEFINED WITH_BINDING_PYTHON )
   SET(WITH_BINDING_PYTHON ON)
 ENDIF()
@@ -70,17 +72,29 @@ IF (WIN32 AND WITH_TESTS)
   SET(WITH_TESTS OFF)
 ENDIF()
 
-IF(Tesseract_FRAMEWORK_PATH AND Leptonica_FRAMEWORK_PATH) 
+# Gerekli kütüphane yollarını belirtme
+set(Tesseract_INCLUDE_DIR "/usr/local/include")
+set(Tesseract_LIBRARY "/usr/local/lib/libtesseract.dylib")
+set(Leptonica_INCLUDE_DIR "/usr/local/include")
+set(Leptonica_LIBRARY "/usr/local/lib/libleptonica.dylib")
+
+# Tesseract ve Leptonica kütüphanelerini bulma
+IF(Tesseract_FRAMEWORK_PATH AND Leptonica_FRAMEWORK_PATH)
   MESSAGE(STATUS "Using Tesseract iOS framework: ${Tesseract_FRAMEWORK_PATH}")
   MESSAGE(STATUS "Using Leptonica iOS framework: ${Leptonica_FRAMEWORK_PATH}")
   # http://www.vtk.org/Wiki/CMake:HowToUseExistingOSXFrameworks
   SET(Tesseract_LIBRARIES "${Tesseract_FRAMEWORK_PATH};${Leptonica_FRAMEWORK_PATH}")
   SET(Tesseract_INCLUDE_DIRS "${Tesseract_FRAMEWORK_PATH}/Headers")
 ELSE()
-  FIND_PACKAGE( Tesseract REQUIRED )
+  SET(Tesseract_LIBRARIES ${Tesseract_LIBRARY})
+  SET(Tesseract_INCLUDE_DIRS ${Tesseract_INCLUDE_DIR})
+  SET(Leptonica_LIBRARIES ${Leptonica_LIBRARY})
+  SET(Leptonica_INCLUDE_DIRS ${Leptonica_INCLUDE_DIR})
 ENDIF()
 
-include_directories(${Tesseract_INCLUDE_DIRS})
+include_directories(${Tesseract_INCLUDE_DIRS} ${Leptonica_INCLUDE_DIRS})
+
+include(${CMAKE_MODULE_PATH}/LibFindMacros.cmake)
 
 IF(OpenCV_FRAMEWORK_PATH)
   MESSAGE(STATUS "Using OpenCV iOS framework: ${OpenCV_FRAMEWORK_PATH}")
@@ -109,7 +123,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_definitions( -DOPENCV_MAJOR_VERSION=${OpenCV_VERSION_MAJOR})
 
-
 include_directories(./openalpr )
 
 IF (WIN32)
@@ -122,13 +135,10 @@ IF (WIN32)
 		ws2_32.lib
 	)
 ELSE()
-
 	SET (Extra_LIBS
 		pthread
 	)
-
 ENDIF()
-
 
 set(CMAKE_CSS_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall ")
 if (NOT IOS)
@@ -161,7 +171,6 @@ if (NOT IOS)
   )
 ENDIF()
 
-
 # Compile the alprd library on Unix-based OS
 IF (WITH_DAEMON)
   ADD_EXECUTABLE( alprd  
@@ -169,7 +178,7 @@ IF (WITH_DAEMON)
     daemon/daemonconfig.cpp 
     daemon/beanstalk.c 
     daemon/beanstalk.cc 
-)
+  )
 
   FIND_PACKAGE( CURL REQUIRED )
   FIND_PACKAGE( log4cplus REQUIRED )
@@ -183,34 +192,32 @@ IF (WITH_DAEMON)
 	  ${Tesseract_LIBRARIES}
 	  ${log4cplus_LIBRARIES}
       ${Extra_LIBS}
-    )
-	
+  )
 ENDIF()
 
 if(WITH_UTILITIES)
-add_subdirectory(misc_utilities)
+  add_subdirectory(misc_utilities)
 ENDIF()
 
 if (WITH_TESTS)  
-add_subdirectory(tests)
+  add_subdirectory(tests)
 ENDIF()
 
 add_subdirectory(openalpr)
 add_subdirectory(video)
 
 if (WITH_BINDING_JAVA) 
-add_subdirectory(bindings/java)
+  add_subdirectory(bindings/java)
 ENDIF()
 
 if (WITH_BINDING_PYTHON)
-add_subdirectory(bindings/python)
+  add_subdirectory(bindings/python)
 ENDIF()
-        
 
 if (WITH_BINDING_GO)
-    set(OPENALPR_LIB_GO openalprgo)
-    set(TAG_OPENALPR_LIB_GO "-l${OPENALPR_LIB_GO}")
-    add_subdirectory(bindings/go)
+  set(OPENALPR_LIB_GO openalprgo)
+  set(TAG_OPENALPR_LIB_GO "-l${OPENALPR_LIB_GO}")
+  add_subdirectory(bindings/go)
 ENDIF()
 
 if (NOT IOS)
@@ -236,7 +243,6 @@ IF (WITH_DAEMON)
   install (TARGETS    alprd DESTINATION  ${CMAKE_INSTALL_PREFIX}/bin)
 ENDIF()
 
-
 SET (CPACK_PACKAGE_VERSION ${OPENALPR_VERSION})
 SET (CPACK_SET_DESTDIR "on")
 SET (CPACK_GENERATOR "DEB;TGZ")
@@ -257,12 +263,6 @@ SET (CPACK_PACKAGE_CONTACT "Matt Hill <matt@ndu.com>")
 SET (CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}_${CPACK_DEBIAN_ARCHITECTURE}")
 
 SET (CPACK_COMPONENTS_ALL Libraries ApplicationData)
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set (CMAKE_CXX_STANDARD 11)
-cmake_minimum_required(VERSION 3.1)
-# Enable C++11
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 INCLUDE(CPack)
 
 # ----------------------------------------------------------------------------
@@ -275,4 +275,3 @@ CONFIGURE_FILE(
   @ONLY)
 
 ADD_CUSTOM_TARGET(uninstall COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
-
